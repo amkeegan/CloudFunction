@@ -1,0 +1,78 @@
+int irSensor = D4;  //SR505 PIR Sensor
+int luxSensor = A0; //Grove - Light Sensor
+int wave = D1;      //Green LED for successful RECEIVED wave
+int noWave = D0;    //Red LED for no wave detected
+int illuminate = D6;//White LED for Low light detected
+
+
+bool remoteMotion = false;        //Variable to pass around Detected Motion; true = motion detected.
+bool localMotion;   //Local handling of motion
+
+double lux;         //Light Sensor output
+
+void myHandler(const char *event, const char *data) //Handler function for Particle.subscribe
+{
+    if (strcmp(data, "wave") == 0)
+    {
+        remoteMotion = true;  //If subscribed event data is "wave" motion variable is set to true (and will trigger appropriate actions)
+    }
+}
+
+void waveFUNC(bool isTrue)  
+{
+    if(isTrue)          //Actions for Motion detected from REMOTE system
+    {
+        digitalWrite(noWave, LOW);
+        digitalWrite(wave, HIGH);
+        delay(2000);
+        digitalWrite(wave, LOW);
+        remoteMotion = false;       //RESET variable
+        delay(2000);
+        
+    }
+    else                //Show that no motion has been detected
+    {
+        digitalWrite(noWave, HIGH);
+        delay(500);
+        digitalWrite(noWave, LOW);
+        delay(1000);
+    }
+    
+}
+
+void setup() 
+{
+    pinMode(irSensor, INPUT);
+    pinMode(wave, OUTPUT);
+    pinMode(noWave, OUTPUT);
+    
+    pinMode(illuminate, OUTPUT);
+    pinMode(luxSensor, INPUT);
+    
+    Particle.subscribe("motion", myHandler); //Subscribe to an event called "motion", and call myHandler function when "motion" is pulled from the cloud
+
+}
+
+
+
+void loop() 
+{
+    while (digitalRead(irSensor) == LOW && analogRead(luxSensor) > 2500)
+    {
+        digitalWrite(illuminate, LOW);
+        waveFUNC(remoteMotion);
+    }
+    
+    while (digitalRead(irSensor) == LOW && analogRead(luxSensor) <= 2500)
+    {
+        digitalWrite(illuminate, HIGH);
+        waveFUNC(remoteMotion);
+    }
+    
+    if (digitalRead(irSensor) == HIGH)
+    {
+        Particle.publish("motion", "wave"); //Publish an event called "motion" with the data "wave" to indicate motion has been detected LOCALLY
+        delay(5000);
+    }
+ 
+}
