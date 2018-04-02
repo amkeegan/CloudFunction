@@ -4,9 +4,8 @@ int wave = D1;      //Green LED for successful RECEIVED wave
 int noWave = D0;    //Red LED for no wave detected
 int illuminate = D6;//White LED for Low light detected
 
-
 bool remoteMotion = false;        //Variable to pass around Detected Motion; true = motion detected.
-bool localMotion;   //Local handling of motion
+bool remoteLight = true;
 
 double lux;         //Light Sensor output
 
@@ -15,6 +14,10 @@ void myHandler(const char *event, const char *data) //Handler function for Parti
     if (strcmp(data, "wave") == 0)
     {
         remoteMotion = true;  //If subscribed event data is "wave" motion variable is set to true (and will trigger appropriate actions)
+    }
+    else if (strcmp(data, "noLight") == 0)
+    {
+        remoteLight = false;
     }
 }
 
@@ -27,7 +30,7 @@ void waveFUNC(bool isTrue)
         delay(2000);
         digitalWrite(wave, LOW);
         remoteMotion = false;       //RESET variable
-        delay(2000);
+        delay(5000);
         
     }
     else                //Show that no motion has been detected
@@ -40,6 +43,21 @@ void waveFUNC(bool isTrue)
     
 }
 
+void lightsOn(bool isTrue)
+{
+    if (!remoteLight)
+    {
+        digitalWrite(illuminate, HIGH);
+        delay(100);
+        digitalWrite(illuminate, LOW);
+        delay(100);
+        digitalWrite(illuminate, HIGH);
+        delay(100);
+        digitalWrite(illuminate, LOW);
+        remoteLight = true;
+    }
+}
+
 void setup() 
 {
     pinMode(irSensor, INPUT);
@@ -50,29 +68,21 @@ void setup()
     pinMode(luxSensor, INPUT);
     
     Particle.subscribe("motion", myHandler); //Subscribe to an event called "motion", and call myHandler function when "motion" is pulled from the cloud
-
 }
-
-
 
 void loop() 
 {
-    while (digitalRead(irSensor) == LOW && analogRead(luxSensor) > 2500)
-    {
-        digitalWrite(illuminate, LOW);
-        waveFUNC(remoteMotion);
-    }
-    
-    while (digitalRead(irSensor) == LOW && analogRead(luxSensor) <= 2500)
-    {
-        digitalWrite(illuminate, HIGH);
-        waveFUNC(remoteMotion);
-    }
+    waveFUNC(remoteMotion);
+    lightsOn(remoteLight);
     
     if (digitalRead(irSensor) == HIGH)
     {
         Particle.publish("motion", "wave"); //Publish an event called "motion" with the data "wave" to indicate motion has been detected LOCALLY
-        delay(5000);
+        delay(1000);
     }
- 
+    if (analogRead(luxSensor) <=2500)
+    {
+        Particle.publish("motion", "noLight");
+        delay(1000);
+    }
 }
